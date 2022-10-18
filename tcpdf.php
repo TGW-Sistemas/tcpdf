@@ -1980,6 +1980,8 @@ class TCPDF {
 		$this->bgcolor = array('R' => 255, 'G' => 255, 'B' => 255);
 		$this->extgstates = array();
 		$this->setTextShadow();
+		// author
+		$this->setAuthor(AUTOR_PDF);
 		// signature
 		$this->sign = false;
 		$this->tsa_timestamp = false;

@@ -222,6 +222,9 @@ define('K_TCPDF_THROW_EXCEPTION_ERROR', false);
  */
 define('K_TIMEZONE', 'UTC');
 
+// AUTOR PDF
+define('AUTOR_PDF','TGW Soluções na Saúde');
+
 //============================================================+
 // END OF FILE
 //============================================================+

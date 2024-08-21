@@ -1856,6 +1856,15 @@ class TCPDF {
 	 */
 	protected $allowLocalFiles = false;
 
+	/**
+	 * Variable used to share data between PDF header, body and footer without using $_SESSION
+	 *
+	 * @var array
+	 * @protected
+	 * @since (2024-08-21)
+	 */
+	protected $shareData = array();
+
 	//------------------------------------------------------------
 	// METHODS
 	//------------------------------------------------------------
@@ -24723,6 +24732,16 @@ Putting 1 is equivalent to putting 0 and calling Ln() just after. Default value:
 
         return TCPDF_STATIC::file_exists($file);
     }
+
+	protected function setShareData($shareData)
+	{
+		$this->shareData = $shareData;
+	}
+
+	protected function getShareData()
+	{
+		return $this->shareData;
+	}
 
 } // END OF TCPDF CLASS
 

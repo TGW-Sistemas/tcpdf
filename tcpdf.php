@@ -24733,12 +24733,12 @@ Putting 1 is equivalent to putting 0 and calling Ln() just after. Default value:
         return TCPDF_STATIC::file_exists($file);
     }
 
-	protected function setShareData($shareData)
+	public function setShareData($shareData)
 	{
 		$this->shareData = $shareData;
 	}
 
-	protected function getShareData()
+	public function getShareData()
 	{
 		return $this->shareData;
 	}

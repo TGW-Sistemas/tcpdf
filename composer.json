@@ -1,8 +1,7 @@
 {
-    "name": "tecnickcom/tcpdf",
+    "name": "tgw-sistemas/tcpdf",
     "type": "library",
-    "description": "Deprecated legacy PDF engine for PHP. Migrate to tecnickcom/tc-lib-pdf.",
-    "abandoned": "tecnickcom/tc-lib-pdf",
+    "description": "TCPDF 6.x (fork TGW Sistemas) - PHP class for generating PDF documents and barcodes.",
     "keywords": [
         "PDF",
         "tcpdf",

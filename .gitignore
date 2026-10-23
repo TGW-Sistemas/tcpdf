@@ -2,6 +2,7 @@
 .phpdoc
 *.bak
 /composer.lock
+composer.lock
 /composer.phar
 /vendor/
 PLAN_*

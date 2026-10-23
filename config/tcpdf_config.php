@@ -230,6 +230,12 @@ define('K_TCPDF_THROW_EXCEPTION_ERROR', false);
  */
 define('K_TIMEZONE', 'UTC');
 
+// AUTOR PDF
+define('AUTOR_PDF','TGW Soluções na Saúde');
+
+// Silencia o aviso "TCPDF is deprecated" disparado no construtor a partir da 6.11
+define('TCPDF_SILENCE_DEPRECATION', true);
+
 //============================================================+
 // END OF FILE
 //============================================================+

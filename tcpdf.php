@@ -1878,6 +1878,15 @@ class TCPDF {
 	 */
 	protected $allowLocalFiles = false;
 
+	/**
+	 * Variable used to share data between PDF header, body and footer without using $_SESSION
+	 *
+	 * @var array
+	 * @protected
+	 * @since (2024-08-21)
+	 */
+	protected $shareData = array();
+
 	//------------------------------------------------------------
 	// METHODS
 	//------------------------------------------------------------
@@ -2009,6 +2018,8 @@ class TCPDF {
 		$this->bgcolor = array('R' => 255, 'G' => 255, 'B' => 255);
 		$this->extgstates = array();
 		$this->setTextShadow();
+		// author
+		$this->setAuthor(AUTOR_PDF);
 		// signature
 		$this->sign = false;
 		$this->tsa_timestamp = false;
@@ -13689,6 +13700,11 @@ class TCPDF {
 	 * @since 5.9.101 (2011-07-06)
 	 */
 	protected function getSignatureAppearanceArray($x=0, $y=0, $w=0, $h=0, $page=-1, $name='') {
+		// PHP 8: string vazia ('') em operação aritmética gera TypeError
+		$x = floatval($x);
+		$y = floatval($y);
+		$w = floatval($w);
+		$h = floatval($h);
 		$sigapp = array();
 		if (($page < 1) OR ($page > $this->numpages)) {
 			$sigapp['page'] = $this->page;
@@ -24903,6 +24919,16 @@ class TCPDF {
 			return false;
 		}
 		return @unlink($file);
+	}
+
+	public function setShareData($shareData)
+	{
+		$this->shareData = $shareData;
+	}
+
+	public function getShareData()
+	{
+		return $this->shareData;
 	}
 
 } // END OF TCPDF CLASS

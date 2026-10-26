@@ -1306,6 +1306,20 @@ class TCPDF {
 	protected $empty_signature_appearance = array();
 
 	/**
+	 * Assinaturas digitais adicionais (2ª em diante), registradas por chamadas extras de setSignature().
+	 * Cada item contém: 'objid' (widget), 'signature_data' e 'signature_appearance'.
+	 * @protected
+	 */
+	protected $signatures = array();
+
+	/**
+	 * Incremental updates pré-montados em _enddoc() para as assinaturas adicionais.
+	 * Cada item contém: 'data' (conteúdo do update) e 'signature_data'.
+	 * @protected
+	 */
+	protected $signature_updates = array();
+
+	/**
 	 * Boolean flag to enable document timestamping with TSA.
 	 * @protected
 	 * @since 6.0.085 (2014-06-19)
@@ -2026,6 +2040,8 @@ class TCPDF {
 		$this->tsa_data = array();
 		$this->signature_appearance = array('page' => 1, 'rect' => '0 0 0 0', 'name' => 'Signature');
 		$this->empty_signature_appearance = array();
+		$this->signatures = array();
+		$this->signature_updates = array();
 		// user's rights
 		$this->ur['enabled'] = false;
 		$this->ur['document'] = '/FullSave';
@@ -7726,51 +7742,14 @@ class TCPDF {
 			$pdfdoc = $this->getBuffer();
 			// remove last newline
 			$pdfdoc = substr($pdfdoc, 0, -1);
-			// remove filler space
-			$byterange_string_len = strlen(TCPDF_STATIC::$byterange_string);
-			// define the ByteRange
-			$byte_range = array();
-			$byte_range[0] = 0;
-			$byte_range[1] = strpos($pdfdoc, TCPDF_STATIC::$byterange_string) + $byterange_string_len + 10;
-			$byte_range[2] = $byte_range[1] + $this->signature_max_length + 2;
-			$byte_range[3] = strlen($pdfdoc) - $byte_range[2];
-			$pdfdoc = substr($pdfdoc, 0, $byte_range[1]).substr($pdfdoc, $byte_range[2]);
-			// replace the ByteRange
-			$byterange = sprintf('/ByteRange[0 %u %u %u]', $byte_range[1], $byte_range[2], $byte_range[3]);
-			$byterange .= str_repeat(' ', ($byterange_string_len - strlen($byterange)));
-			$pdfdoc = str_replace(TCPDF_STATIC::$byterange_string, $byterange, $pdfdoc);
-			// write the document to a temporary folder
-			$tempdoc = TCPDF_STATIC::getObjFilename('doc', $this->file_id);
-			$f = TCPDF_STATIC::fopenLocal($tempdoc, 'wb');
-			if (!$f) {
-				$this->Error('Unable to create temporary file: '.$tempdoc);
+			$pdfdoc = $this->_applysignature($pdfdoc, $this->signature_data);
+			// assinaturas adicionais: cada uma é aplicada em um incremental update que cobre as revisões anteriores
+			if (!empty($this->signature_updates)) {
+				foreach ($this->signature_updates as $update) {
+					$pdfdoc = $this->_applysignature($pdfdoc.$update['data'], $update['signature_data']);
+				}
 			}
-			$pdfdoc_length = strlen($pdfdoc);
-			fwrite($f, $pdfdoc, $pdfdoc_length);
-			fclose($f);
-			// get digital signature via openssl library
-			$tempsign = TCPDF_STATIC::getObjFilename('sig', $this->file_id);
-			if (empty($this->signature_data['extracerts'])) {
-				openssl_pkcs7_sign($tempdoc, $tempsign, $this->signature_data['signcert'], array($this->signature_data['privkey'], $this->signature_data['password']), array(), PKCS7_BINARY | PKCS7_DETACHED);
-			} else {
-				openssl_pkcs7_sign($tempdoc, $tempsign, $this->signature_data['signcert'], array($this->signature_data['privkey'], $this->signature_data['password']), array(), PKCS7_BINARY | PKCS7_DETACHED, $this->signature_data['extracerts']);
-			}
-			// read signature
-			$signature = file_get_contents($tempsign);
-			// extract signature
-			$signature = substr($signature, $pdfdoc_length);
-			$signature = substr($signature, (strpos($signature, "%%EOF\n\n------") + 13));
-			$tmparr = explode("\n\n", $signature);
-			$signature = $tmparr[1];
-			// decode signature
-			$signature = base64_decode(trim($signature));
-			// add TSA timestamp to signature
-			$signature = $this->applyTSA($signature);
-			// convert signature to hex
-			$signature = current(unpack('H*', $signature));
-			$signature = str_pad($signature, $this->signature_max_length, '0');
-			// Add signature to the document
-			$this->buffer = substr($pdfdoc, 0, $byte_range[1]).'<'.$signature.'>'.substr($pdfdoc, $byte_range[1]);
+			$this->buffer = $pdfdoc;
 			$this->bufferlen = strlen($this->buffer);
 		}
 		switch($dest) {
@@ -7939,6 +7918,7 @@ class TCPDF {
 			'imagekeys',
 			'sign',
 			'signature_data',
+			'signature_updates',
 			'signature_max_length',
 			'byterange_string',
 			'tsa_timestamp',
@@ -8246,6 +8226,14 @@ class TCPDF {
 		if ($this->sign AND ($n == $this->signature_appearance['page']) AND isset($this->signature_data['cert_type'])) {
 			// set reference for signature object
 			$out .= ' '.$this->sig_obj_id.' 0 R';
+		}
+		if ($this->sign AND !empty($this->signatures)) {
+			foreach ($this->signatures as $sig) {
+				if ($sig['signature_appearance']['page'] == $n) {
+					// set reference for additional signature objects
+					$out .= ' '.$sig['objid'].' 0 R';
+				}
+			}
 		}
 		if (!empty($this->empty_signature_appearance)) {
 			foreach ($this->empty_signature_appearance as $esa) {
@@ -9981,6 +9969,10 @@ class TCPDF {
 			if ($this->sign AND isset($this->signature_data['cert_type'])) {
 				// set reference for signature object
 				$objrefs .= $this->sig_obj_id.' 0 R';
+				// set reference for additional signature objects
+				foreach ($this->signatures as $sig) {
+					$objrefs .= ' '.$sig['objid'].' 0 R';
+				}
 			}
 			if (!empty($this->empty_signature_appearance)) {
 				foreach ($this->empty_signature_appearance as $esa) {
@@ -10159,20 +10151,18 @@ class TCPDF {
 		if ($this->sign AND isset($this->signature_data['cert_type'])) {
 			// widget annotation for signature
 			$out = $this->_getobj($this->sig_obj_id)."\n";
-			$out .= '<< /Type /Annot';
-			$out .= ' /Subtype /Widget';
-			$out .= ' /Rect ['.$this->signature_appearance['rect'].']';
-			$out .= ' /P '.$this->page_obj_id[($this->signature_appearance['page'])].' 0 R'; // link to signature appearance page
-			$out .= ' /F 4';
-			$out .= ' /FT /Sig';
-			$out .= ' /T '.$this->_textstring($this->signature_appearance['name'], $this->sig_obj_id);
-			$out .= ' /Ff 0';
-			$out .= ' /V '.($this->sig_obj_id + 1).' 0 R';
-			$out .= ' >>';
+			$out .= $this->_getsignaturewidget($this->sig_obj_id, $this->signature_appearance, ($this->sig_obj_id + 1));
 			$out .= "\n".'endobj';
 			$this->_out($out);
 			// signature
 			$this->_putsignature();
+			// widgets das assinaturas adicionais (campos ainda não assinados nesta revisão)
+			foreach ($this->signatures as $sig) {
+				$out = $this->_getobj($sig['objid'])."\n";
+				$out .= $this->_getsignaturewidget($sig['objid'], $sig['signature_appearance']);
+				$out .= "\n".'endobj';
+				$this->_out($out);
+			}
 		}
 		// Info
 		$objid_info = $this->_putinfo();
@@ -10209,6 +10199,55 @@ class TCPDF {
 		$this->_out($o);
 		$this->_out('%%EOF');
 		$this->state = 3; // end-of-doc
+		// incremental updates das assinaturas adicionais
+		$this->signature_updates = array();
+		if ($this->sign AND isset($this->signature_data['cert_type']) AND !empty($this->signatures)) {
+			// o Output() remove a última quebra de linha do buffer antes de assinar
+			$doclen = ($this->bufferlen - 1);
+			$prevxref = $o;
+			foreach ($this->signatures as $sig) {
+				++$this->n;
+				$sigobjid = $this->n;
+				$offsets = array();
+				// widget atualizado, agora apontando para o dicionário de assinatura
+				$data = "\n";
+				$offsets[$sig['objid']] = ($doclen + strlen($data));
+				$data .= $sig['objid'].' 0 obj'."\n";
+				$data .= $this->_getsignaturewidget($sig['objid'], $sig['signature_appearance'], $sigobjid);
+				$data .= "\n".'endobj'."\n";
+				// dicionário de assinatura (aprovação)
+				$offsets[$sigobjid] = ($doclen + strlen($data));
+				$data .= $sigobjid.' 0 obj'."\n";
+				$data .= $this->_getsignaturedict($sigobjid, $sig['signature_data'], false);
+				$data .= "\n".'endobj'."\n";
+				// XREF section
+				$xref = ($doclen + strlen($data));
+				$data .= 'xref'."\n";
+				foreach ($offsets as $objid => $offset) {
+					$data .= $objid.' 1'."\n";
+					$data .= sprintf('%010d 00000 n ', $offset)."\n";
+				}
+				// TRAILER
+				$data .= 'trailer'."\n";
+				$data .= '<<';
+				$data .= ' /Size '.($this->n + 1);
+				$data .= ' /Root '.$objid_catalog.' 0 R';
+				$data .= ' /Info '.$objid_info.' 0 R';
+				if ($this->encrypted) {
+					$data .= ' /Encrypt '.$this->encryptdata['objid'].' 0 R';
+				}
+				$data .= ' /ID [ <'.$this->file_id.'> <'.$this->file_id.'> ]';
+				$data .= ' /Prev '.$prevxref;
+				$data .= ' >>'."\n";
+				$data .= 'startxref'."\n";
+				$data .= $xref."\n";
+				// sem quebra de linha final: necessário para a extração da assinatura em _applysignature()
+				$data .= '%%EOF';
+				$this->signature_updates[] = array('data' => $data, 'signature_data' => $sig['signature_data']);
+				$doclen += strlen($data);
+				$prevxref = $xref;
+			}
+		}
 	}
 
 	/**
@@ -13509,19 +13548,33 @@ class TCPDF {
 		}
 		$sigobjid = ($this->sig_obj_id + 1);
 		$out = $this->_getobj($sigobjid)."\n";
-		$out .= '<< /Type /Sig';
+		$out .= $this->_getsignaturedict($sigobjid, $this->signature_data, true);
+		$out .= "\n".'endobj';
+		$this->_out($out);
+	}
+
+	/**
+	 * Retorna o dicionário de assinatura (/Type /Sig) com os placeholders de ByteRange e Contents.
+	 * @param int $sigobjid ID do objeto de assinatura
+	 * @param array $signature_data dados da assinatura (ver setSignature())
+	 * @param boolean $certification se true, inclui o /Reference (DocMDP ou UR3) conforme $signature_data; assinaturas adicionais são sempre de aprovação
+	 * @return string
+	 * @protected
+	 */
+	protected function _getsignaturedict($sigobjid, $signature_data, $certification=true) {
+		$out = '<< /Type /Sig';
 		$out .= ' /Filter /Adobe.PPKLite';
 		$out .= ' /SubFilter /adbe.pkcs7.detached';
 		$out .= ' '.TCPDF_STATIC::$byterange_string;
 		$out .= ' /Contents<'.str_repeat('0', $this->signature_max_length).'>';
-		if (empty($this->signature_data['approval']) OR ($this->signature_data['approval'] != 'A')) {
+		if ($certification AND (empty($signature_data['approval']) OR ($signature_data['approval'] != 'A'))) {
 			$out .= ' /Reference ['; // array of signature reference dictionaries
 			$out .= ' << /Type /SigRef';
-			if ($this->signature_data['cert_type'] > 0) {
+			if ($signature_data['cert_type'] > 0) {
 				$out .= ' /TransformMethod /DocMDP';
 				$out .= ' /TransformParams <<';
 				$out .= ' /Type /TransformParams';
-				$out .= ' /P '.$this->signature_data['cert_type'];
+				$out .= ' /P '.$signature_data['cert_type'];
 				$out .= ' /V /1.2';
 			} else {
 				$out .= ' /TransformMethod /UR3';
@@ -13556,22 +13609,100 @@ class TCPDF {
 			$out .= ' >>';
 			$out .= ' ]'; // end of reference
 		}
-		if (isset($this->signature_data['info']['Name']) AND !TCPDF_STATIC::empty_string($this->signature_data['info']['Name'])) {
-			$out .= ' /Name '.$this->_textstring($this->signature_data['info']['Name'], $sigobjid);
+		if (isset($signature_data['info']['Name']) AND !TCPDF_STATIC::empty_string($signature_data['info']['Name'])) {
+			$out .= ' /Name '.$this->_textstring($signature_data['info']['Name'], $sigobjid);
 		}
-		if (isset($this->signature_data['info']['Location']) AND !TCPDF_STATIC::empty_string($this->signature_data['info']['Location'])) {
-			$out .= ' /Location '.$this->_textstring($this->signature_data['info']['Location'], $sigobjid);
+		if (isset($signature_data['info']['Location']) AND !TCPDF_STATIC::empty_string($signature_data['info']['Location'])) {
+			$out .= ' /Location '.$this->_textstring($signature_data['info']['Location'], $sigobjid);
 		}
-		if (isset($this->signature_data['info']['Reason']) AND !TCPDF_STATIC::empty_string($this->signature_data['info']['Reason'])) {
-			$out .= ' /Reason '.$this->_textstring($this->signature_data['info']['Reason'], $sigobjid);
+		if (isset($signature_data['info']['Reason']) AND !TCPDF_STATIC::empty_string($signature_data['info']['Reason'])) {
+			$out .= ' /Reason '.$this->_textstring($signature_data['info']['Reason'], $sigobjid);
 		}
-		if (isset($this->signature_data['info']['ContactInfo']) AND !TCPDF_STATIC::empty_string($this->signature_data['info']['ContactInfo'])) {
-			$out .= ' /ContactInfo '.$this->_textstring($this->signature_data['info']['ContactInfo'], $sigobjid);
+		if (isset($signature_data['info']['ContactInfo']) AND !TCPDF_STATIC::empty_string($signature_data['info']['ContactInfo'])) {
+			$out .= ' /ContactInfo '.$this->_textstring($signature_data['info']['ContactInfo'], $sigobjid);
 		}
 		$out .= ' /M '.$this->_datestring($sigobjid, $this->doc_modification_timestamp);
 		$out .= ' >>';
-		$out .= "\n".'endobj';
-		$this->_out($out);
+		return $out;
+	}
+
+	/**
+	 * Retorna o dicionário do widget (campo) de assinatura.
+	 * @param int $objid ID do objeto do widget
+	 * @param array $appearance aparência da assinatura (ver getSignatureAppearanceArray())
+	 * @param int $sigobjid ID do dicionário de assinatura (/V); 0 para campo ainda não assinado
+	 * @return string
+	 * @protected
+	 */
+	protected function _getsignaturewidget($objid, $appearance, $sigobjid=0) {
+		$out = '<< /Type /Annot';
+		$out .= ' /Subtype /Widget';
+		$out .= ' /Rect ['.$appearance['rect'].']';
+		$out .= ' /P '.$this->page_obj_id[($appearance['page'])].' 0 R'; // link to signature appearance page
+		$out .= ' /F 4';
+		$out .= ' /FT /Sig';
+		$out .= ' /T '.$this->_textstring($appearance['name'], $objid);
+		$out .= ' /Ff 0';
+		if ($sigobjid > 0) {
+			$out .= ' /V '.$sigobjid.' 0 R';
+		}
+		$out .= ' >>';
+		return $out;
+	}
+
+	/**
+	 * Calcula o ByteRange e insere a assinatura PKCS#7 no primeiro placeholder de assinatura ainda não preenchido.
+	 * @param string $pdfdoc conteúdo do documento (sem a quebra de linha final)
+	 * @param array $signature_data dados da assinatura (ver setSignature())
+	 * @return string documento assinado
+	 * @protected
+	 */
+	protected function _applysignature($pdfdoc, $signature_data) {
+		// remove filler space
+		$byterange_string_len = strlen(TCPDF_STATIC::$byterange_string);
+		// define the ByteRange
+		$byte_range = array();
+		$byte_range[0] = 0;
+		$byte_range[1] = strpos($pdfdoc, TCPDF_STATIC::$byterange_string) + $byterange_string_len + 10;
+		$byte_range[2] = $byte_range[1] + $this->signature_max_length + 2;
+		$byte_range[3] = strlen($pdfdoc) - $byte_range[2];
+		$pdfdoc = substr($pdfdoc, 0, $byte_range[1]).substr($pdfdoc, $byte_range[2]);
+		// replace the ByteRange
+		$byterange = sprintf('/ByteRange[0 %u %u %u]', $byte_range[1], $byte_range[2], $byte_range[3]);
+		$byterange .= str_repeat(' ', ($byterange_string_len - strlen($byterange)));
+		$pdfdoc = str_replace(TCPDF_STATIC::$byterange_string, $byterange, $pdfdoc);
+		// write the document to a temporary folder
+		$tempdoc = TCPDF_STATIC::getObjFilename('doc', $this->file_id);
+		$f = TCPDF_STATIC::fopenLocal($tempdoc, 'wb');
+		if (!$f) {
+			$this->Error('Unable to create temporary file: '.$tempdoc);
+		}
+		$pdfdoc_length = strlen($pdfdoc);
+		fwrite($f, $pdfdoc, $pdfdoc_length);
+		fclose($f);
+		// get digital signature via openssl library
+		$tempsign = TCPDF_STATIC::getObjFilename('sig', $this->file_id);
+		if (empty($signature_data['extracerts'])) {
+			openssl_pkcs7_sign($tempdoc, $tempsign, $signature_data['signcert'], array($signature_data['privkey'], $signature_data['password']), array(), PKCS7_BINARY | PKCS7_DETACHED);
+		} else {
+			openssl_pkcs7_sign($tempdoc, $tempsign, $signature_data['signcert'], array($signature_data['privkey'], $signature_data['password']), array(), PKCS7_BINARY | PKCS7_DETACHED, $signature_data['extracerts']);
+		}
+		// read signature
+		$signature = file_get_contents($tempsign);
+		// extract signature
+		$signature = substr($signature, $pdfdoc_length);
+		$signature = substr($signature, (strpos($signature, "%%EOF\n\n------") + 13));
+		$tmparr = explode("\n\n", $signature);
+		$signature = $tmparr[1];
+		// decode signature
+		$signature = base64_decode(trim($signature));
+		// add TSA timestamp to signature
+		$signature = $this->applyTSA($signature);
+		// convert signature to hex
+		$signature = current(unpack('H*', $signature));
+		$signature = str_pad($signature, $this->signature_max_length, '0');
+		// Add signature to the document
+		return substr($pdfdoc, 0, $byte_range[1]).'<'.$signature.'>'.substr($pdfdoc, $byte_range[1]);
 	}
 
 	/**
@@ -13617,6 +13748,9 @@ class TCPDF {
 	 * To create self-signed signature: openssl req -x509 -nodes -days 365000 -newkey rsa:1024 -keyout tcpdf.crt -out tcpdf.crt
 	 * To export crt to p12: openssl pkcs12 -export -in tcpdf.crt -out tcpdf.p12
 	 * To convert pfx certificate to pem: openssl pkcs12 -in tcpdf.pfx -out tcpdf.crt -nodes
+	 * Pode ser chamado mais de uma vez: cada chamada adicional inclui mais uma assinatura (de aprovação),
+	 * aplicada em um incremental update; a primeira chamada mantém o comportamento original (certificação).
+	 * setSignatureAppearance() sempre se aplica à assinatura da última chamada.
 	 * @param mixed $signing_cert signing certificate (string or filename prefixed with 'file://')
 	 * @param mixed $private_key private key (string or filename prefixed with 'file://')
 	 * @param string $private_key_password password
@@ -13633,6 +13767,11 @@ class TCPDF {
 		// to export crt to p12: openssl pkcs12 -export -in tcpdf.crt -out tcpdf.p12
 		// to convert pfx certificate to pem: openssl
 		//     OpenSSL> pkcs12 -in <cert.pfx> -out <cert.crt> -nodes
+		if ($this->sign AND isset($this->signature_data['cert_type'])) {
+			// assinatura adicional: aplicada como assinatura de aprovação em um incremental update
+			$this->addSignature($signing_cert, $private_key, $private_key_password, $extracerts, $cert_type, $info, $approval);
+			return;
+		}
 		$this->sign = true;
 		++$this->n;
 		$this->sig_obj_id = $this->n; // signature widget
@@ -13654,6 +13793,69 @@ class TCPDF {
 	}
 
 	/**
+	 * Adiciona uma assinatura digital adicional ao documento (chamado por setSignature() a partir da 2ª chamada).
+	 * Cada assinatura adicional é uma assinatura de aprovação aplicada em um incremental update,
+	 * cobrindo o documento e as assinaturas anteriores; $cert_type e $approval são ignorados.
+	 * Use setSignatureAppearance() após esta chamada para posicionar o campo desta assinatura.
+	 * @param mixed $signing_cert signing certificate (string or filename prefixed with 'file://')
+	 * @param mixed $private_key private key (string or filename prefixed with 'file://')
+	 * @param string $private_key_password password
+	 * @param string $extracerts specifies the name of a file containing a bunch of extra certificates to include in the signature.
+	 * @param int $cert_type ignorado (apenas a primeira assinatura pode ser de certificação)
+	 * @param array $info array of option information: Name, Location, Reason, ContactInfo.
+	 * @param string $approval ignorado
+	 * @protected
+	 */
+	protected function addSignature($signing_cert='', $private_key='', $private_key_password='', $extracerts='', $cert_type=2, $info=array(), $approval='') {
+		if (strlen($signing_cert) == 0) {
+			$this->Error('Please provide a certificate file and password!');
+		}
+		if ((empty($this->signature_data['approval']) OR ($this->signature_data['approval'] != 'A')) AND ($this->signature_data['cert_type'] == 1)) {
+			$this->Error('The first signature is a certification with cert_type 1 (no changes allowed): additional signatures would invalidate it. Use cert_type 2 or 3.');
+		}
+		if (strlen($private_key) == 0) {
+			$private_key = $signing_cert;
+		}
+		++$this->n;
+		$this->signatures[] = array(
+			'objid' => $this->n, // signature widget
+			'signature_data' => array(
+				'signcert' => $signing_cert,
+				'privkey' => $private_key,
+				'password' => $private_key_password,
+				'extracerts' => $extracerts,
+				'cert_type' => $cert_type,
+				'info' => $info,
+				'approval' => 'A'
+			),
+			'signature_appearance' => array('page' => 1, 'rect' => '0 0 0 0', 'name' => $this->getUniqueSignatureName('Signature'))
+		);
+	}
+
+	/**
+	 * Retorna um nome de campo de assinatura ainda não utilizado (campos com o mesmo /T seriam tratados como um só).
+	 * @param string $name nome desejado
+	 * @param int $skip índice em $this->signatures a ser desconsiderado na comparação (-1 = nenhum)
+	 * @return string
+	 * @protected
+	 */
+	protected function getUniqueSignatureName($name, $skip=-1) {
+		$used = array($this->signature_appearance['name']);
+		foreach ($this->signatures as $key => $sig) {
+			if ($key != $skip) {
+				$used[] = $sig['signature_appearance']['name'];
+			}
+		}
+		$unique = $name;
+		$i = 1;
+		while (in_array($unique, $used, true)) {
+			++$i;
+			$unique = $name.' '.$i;
+		}
+		return $unique;
+	}
+
+	/**
 	 * Set the digital signature appearance (a cliccable rectangle area to get signature properties)
 	 * @param float $x Abscissa of the upper-left corner.
 	 * @param float $y Ordinate of the upper-left corner.
@@ -13666,6 +13868,14 @@ class TCPDF {
 	 * @since 5.3.011 (2010-06-17)
 	 */
 	public function setSignatureAppearance($x=0, $y=0, $w=0, $h=0, $page=-1, $name='') {
+		if (!empty($this->signatures)) {
+			// aplica à última assinatura adicionada via setSignature()
+			$key = (count($this->signatures) - 1);
+			$sigapp = $this->getSignatureAppearanceArray($x, $y, $w, $h, $page, $name);
+			$sigapp['name'] = $this->getUniqueSignatureName($sigapp['name'], $key);
+			$this->signatures[$key]['signature_appearance'] = $sigapp;
+			return;
+		}
 		$this->signature_appearance = $this->getSignatureAppearanceArray($x, $y, $w, $h, $page, $name);
 	}
 

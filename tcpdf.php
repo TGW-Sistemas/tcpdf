@@ -2979,6 +2979,8 @@ class TCPDF {
 	 * @see SetAuthor(), SetCreator(), SetKeywords(), SetSubject()
 	 */
 	public function setTitle($title) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$title = $title ?? '';
 		$this->title = $title;
 	}
 
@@ -2990,6 +2992,8 @@ class TCPDF {
 	 * @see SetAuthor(), SetCreator(), SetKeywords(), SetTitle()
 	 */
 	public function setSubject($subject) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$subject = $subject ?? '';
 		$this->subject = $subject;
 	}
 
@@ -3001,6 +3005,8 @@ class TCPDF {
 	 * @see SetCreator(), SetKeywords(), SetSubject(), SetTitle()
 	 */
 	public function setAuthor($author) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$author = $author ?? '';
 		$this->author = $author;
 	}
 
@@ -3012,6 +3018,8 @@ class TCPDF {
 	 * @see SetAuthor(), SetCreator(), SetSubject(), SetTitle()
 	 */
 	public function setKeywords($keywords) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$keywords = $keywords ?? '';
 		$this->keywords = $keywords;
 	}
 
@@ -3023,6 +3031,8 @@ class TCPDF {
 	 * @see SetAuthor(), SetKeywords(), SetSubject(), SetTitle()
 	 */
 	public function setCreator($creator) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$creator = $creator ?? '';
 		$this->creator = $creator;
 	}
 
@@ -4158,6 +4168,8 @@ class TCPDF {
 	 * @since 1.2
 	 */
 	public function GetStringWidth($s, $fontname='', $fontstyle='', $fontsize=0, $getarray=false) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$s = $s ?? '';
 		return $this->GetArrStringWidth(TCPDF_FONTS::utf8Bidi(TCPDF_FONTS::UTF8StringToArray($s, $this->isunicode, $this->CurrentFont), $s, $this->tmprtl, $this->isunicode, $this->CurrentFont), $fontname, $fontstyle, $fontsize, $getarray);
 	}
 
@@ -4262,6 +4274,8 @@ class TCPDF {
 	 * @since 2.0.0001 (2008-01-07)
 	 */
 	public function GetNumChars($s) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$s = $s ?? '';
 		if ($this->isUnicodeFont()) {
 			return count(TCPDF_FONTS::UTF8StringToArray($s, $this->isunicode, $this->CurrentFont));
 		}
@@ -4570,6 +4584,9 @@ class TCPDF {
 	 * @see AddFont(), SetFontSize()
 	 */
 	public function setFont($family, $style='', $size=null, $fontfile='', $subset='default', $out=true) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$family = $family ?? '';
+		$style = $style ?? '';
 		//Select a font; size given in points
 		if ($size === null) {
 			$size = $this->FontSizePt;
@@ -4889,6 +4906,8 @@ class TCPDF {
 	 * @since 4.0.018 (2008-08-06)
 	 */
 	public function Annotation($x, $y, $w, $h, $text, $opt=array('Subtype'=>'Text'), $spaces=0) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$text = $text ?? '';
 		if ($this->inxobj) {
 			// store parameters for later use on template
 			$this->xobjects[$this->xobjid]['annotations'][] = array('x' => $x, 'y' => $y, 'w' => $w, 'h' => $h, 'text' => $text, 'opt' => $opt, 'spaces' => $spaces);
@@ -5075,6 +5094,8 @@ class TCPDF {
 	 * @see Cell(), Write(), MultiCell(), WriteHTML(), WriteHTMLCell()
 	 */
 	public function Text($x, $y, $txt, $fstroke=0, $fclip=false, $ffill=true, $border=0, $ln=0, $align='', $fill=false, $link='', $stretch=0, $ignore_min_height=false, $calign='T', $valign='M', $rtloff=false) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$txt = $txt ?? '';
 		$textrendermode = $this->textrendermode;
 		$textstrokewidth = $this->textstrokewidth;
 		$this->setTextRenderingMode($fstroke, $ffill, $fclip);
@@ -5176,6 +5197,8 @@ class TCPDF {
 	 * @see SetFont(), SetDrawColor(), SetFillColor(), SetTextColor(), SetLineWidth(), AddLink(), Ln(), MultiCell(), Write(), SetAutoPageBreak()
 	 */
 	public function Cell($w, $h=0, $txt='', $border=0, $ln=0, $align='', $fill=false, $link='', $stretch=0, $ignore_min_height=false, $calign='T', $valign='M') {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$txt = $txt ?? '';
 		$prev_cell_margin = $this->cell_margin;
 		$prev_cell_padding = $this->cell_padding;
 		$this->adjustCellPadding($border);
@@ -5940,6 +5963,8 @@ class TCPDF {
 	 * @see SetFont(), SetDrawColor(), SetFillColor(), SetTextColor(), SetLineWidth(), Cell(), Write(), SetAutoPageBreak()
 	 */
 	public function MultiCell($w, $h, $txt, $border=0, $align='J', $fill=false, $ln=1, $x=null, $y=null, $reseth=true, $stretch=0, $ishtml=false, $autopadding=true, $maxh=0, $valign='T', $fitcell=false) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$txt = $txt ?? '';
 		$prev_cell_margin = $this->cell_margin;
 		$prev_cell_padding = $this->cell_padding;
 		// adjust internal padding
@@ -6308,6 +6333,8 @@ class TCPDF {
 	 * @since 4.5.011
 	 */
 	public function getNumLines($txt, $w=0, $reseth=false, $autopadding=true, $cellpadding=null, $border=0) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$txt = $txt ?? '';
 		if ($txt === NULL) {
 			return 0;
 		}
@@ -6427,6 +6454,8 @@ class TCPDF {
 	 * @public
 	 */
 	public function getStringHeight($w, $txt, $reseth=false, $autopadding=true, $cellpadding=null, $border=0) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$txt = $txt ?? '';
 		// adjust internal padding
 		$prev_cell_padding = $this->cell_padding;
 		$prev_lasth = $this->lasth;
@@ -6460,6 +6489,8 @@ class TCPDF {
 	 * @since 1.5
 	 */
 	public function Write($h, $txt, $link='', $fill=false, $align='', $ln=false, $stretch=0, $firstline=false, $firstblock=false, $maxh=0, $wadj=0, $margin=null) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$txt = $txt ?? '';
 		// check page for no-write regions and adapt page margins if necessary
 		list($this->x, $this->y) = $this->checkPageRegions($h, $this->x, $this->y);
 		if (strlen($txt) == 0) {
@@ -7473,14 +7504,14 @@ class TCPDF {
 				}
 				imagepng($imgalpha, $tempfile_alpha);
 				if (PHP_VERSION_ID < 80000) {
-					imagedestroy($imgalpha);
+					if (PHP_VERSION_ID < 80000) { imagedestroy($imgalpha); } // no-op desde o PHP 8.0; deprecated no 8.5
 				}
 				// extract image without alpha channel
 				$imgplain = imagecreatetruecolor($wpx, $hpx);
 				imagecopy($imgplain, $img, 0, 0, 0, 0, $wpx, $hpx);
 				imagepng($imgplain, $tempfile_plain);
 				if (PHP_VERSION_ID < 80000) {
-					imagedestroy($imgplain);
+					if (PHP_VERSION_ID < 80000) { imagedestroy($imgplain); } // no-op desde o PHP 8.0; deprecated no 8.5
 				}
 				$parsed = true;
 			} catch (Exception $e) {
@@ -10627,6 +10658,9 @@ class TCPDF {
 	 * @public
 	 */
 	public function addHtmlLink($url, $name, $fill=false, $firstline=false, $color=null, $style=-1, $firstblock=false) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$url = $url ?? '';
+		$name = $name ?? '';
 		if (isset($url[1]) AND ($url[0] == '#') AND is_numeric($url[1])) {
 			// convert url to internal link
 			$lnkdata = explode(',', $url);
@@ -12538,6 +12572,8 @@ class TCPDF {
 	 * @public
 	 */
 	public function setBookmark($txt, $level=0, $y=-1, $page='', $style='', $color=array(0,0,0), $x=-1, $link='') {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$txt = $txt ?? '';
 		$this->Bookmark($txt, $level, $y, $page, $style, $color, $x, $link);
 	}
 
@@ -12555,6 +12591,8 @@ class TCPDF {
 	 * @since 2.1.002 (2008-02-12)
 	 */
 	public function Bookmark($txt, $level=0, $y=-1, $page='', $style='', $color=array(0,0,0), $x=-1, $link='') {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$txt = $txt ?? '';
 		if ($level < 0) {
 			$level = 0;
 		}
@@ -13376,6 +13414,8 @@ class TCPDF {
 	 * @since 4.8.000 (2009-09-07)
 	 */
 	public function Button($name, $w, $h, $caption, $action, $prop=array(), $opt=array(), $x=null, $y=null, $js=false) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$caption = $caption ?? '';
 		if (TCPDF_STATIC::empty_string($x)) {
 			$x = $this->x;
 		}
@@ -15629,6 +15669,8 @@ class TCPDF {
 	 * @public
 	 */
 	public function write1DBarcode($code, $type, $x=null, $y=null, $w=null, $h=null, $xres=null, $style=array(), $align='') {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$code = $code ?? '';
 		if (TCPDF_STATIC::empty_string(trim($code))) {
 			return;
 		}
@@ -15947,6 +15989,8 @@ class TCPDF {
 	 * @public
 	 */
 	public function write2DBarcode($code, $type, $x=null, $y=null, $w=null, $h=null, $style=array(), $align='', $distort=false) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$code = $code ?? '';
 		if (TCPDF_STATIC::empty_string(trim($code))) {
 			return;
 		}
@@ -16263,6 +16307,8 @@ class TCPDF {
 	 * @see setHtmlVSpace()
 	 */
 	public function fixHTMLCode($html, $default_css='', $tagvs=null, $tidy_options=null) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$html = $html ?? '';
 		return TCPDF_STATIC::fixHTMLCode($html, $default_css, $tagvs, $tidy_options, $this->tagvspaces);
 	}
 
@@ -17591,6 +17637,8 @@ class TCPDF {
 	 * @public
 	 */
 	public function writeHTMLCell($w, $h, $x, $y, $html='', $border=0, $ln=0, $fill=false, $reseth=true, $align='', $autopadding=true) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$html = $html ?? '';
 		return $this->MultiCell($w, $h, $html, $border, $align, $fill, $ln, $x, $y, $reseth, 0, true, $autopadding, 0, 'T', false);
 	}
 
@@ -17608,6 +17656,8 @@ class TCPDF {
 	 * @public
 	 */
 	public function writeHTML($html, $ln=true, $fill=false, $reseth=false, $cell=false, $align='') {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$html = $html ?? '';
 		$gvars = $this->getGraphicVars();
 		// store current values
 		$prev_cell_margin = $this->cell_margin;
@@ -22613,6 +22663,8 @@ class TCPDF {
 	 * @public
 	 */
 	public function hyphenateText($text, $patterns, $dictionary=array(), $leftmin=1, $rightmin=2, $charmin=1, $charmax=8) {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$text = $text ?? '';
 		$text = $this->unhtmlentities($text);
 		$word = array(); // last word
 		$txtarr = array(); // text to be returned
@@ -22716,6 +22768,8 @@ class TCPDF {
 	 * @since 5.8.000 (2010-08-11)
 	 */
 	public function stringLeftTrim($str, $replace='') {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$str = $str ?? '';
 		return preg_replace('/^'.$this->re_space['p'].'+/'.$this->re_space['m'], $replace, $str);
 	}
 
@@ -22729,6 +22783,8 @@ class TCPDF {
 	 * @since 5.8.000 (2010-08-11)
 	 */
 	public function stringRightTrim($str, $replace='') {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$str = $str ?? '';
 		return preg_replace('/'.$this->re_space['p'].'+$/'.$this->re_space['m'], $replace, $str);
 	}
 
@@ -22742,6 +22798,8 @@ class TCPDF {
 	 * @since 5.8.000 (2010-08-11)
 	 */
 	public function stringTrim($str, $replace='') {
+		// PHP 8.1+: null em parâmetro de texto gera Deprecated nas funções internas
+		$str = $str ?? '';
 		$str = $this->stringLeftTrim($str, $replace);
 		$str = $this->stringRightTrim($str, $replace);
 		return $str;
@@ -23506,7 +23564,7 @@ class TCPDF {
 		
 		// free this XML parser (does nothing in PHP >= 8.0)
 		if (function_exists('xml_parser_free') && PHP_VERSION_ID < 80000) {
-		    xml_parser_free($parser);
+		    if (PHP_VERSION_ID < 80000) { xml_parser_free($parser); } // no-op desde o PHP 8.0; deprecated no 8.5
 		}
 
 		// >= PHP 7.0.0 "explicitly unset the reference to parser to avoid memory leaks"

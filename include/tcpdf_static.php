@@ -1865,7 +1865,7 @@ class TCPDF_STATIC {
 		curl_exec($crs);
 		$code = curl_getinfo($crs, CURLINFO_HTTP_CODE);
 		if (PHP_VERSION_ID < 80000) {
-			curl_close($crs);
+			if (PHP_VERSION_ID < 80000) { curl_close($crs); } // no-op desde o PHP 8.0; deprecated no 8.5
 		}
 		return ($code == 200);
 	}
@@ -1999,7 +1999,7 @@ class TCPDF_STATIC {
 				curl_setopt_array($crs, $curlopts);
 				$ret = curl_exec($crs);
 				if (PHP_VERSION_ID < 80000) {
-					curl_close($crs);
+					if (PHP_VERSION_ID < 80000) { curl_close($crs); } // no-op desde o PHP 8.0; deprecated no 8.5
 				}
 				if ($ret !== false) {
 					return $ret;

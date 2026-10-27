@@ -128,7 +128,7 @@ class TCPDF_IMAGES {
 		imagepng($image, $tempfile);
 		// remove image from memory
 		if (PHP_VERSION_ID < 80000) {
-			imagedestroy($image);
+			if (PHP_VERSION_ID < 80000) { imagedestroy($image); } // no-op desde o PHP 8.0; deprecated no 8.5
 		}
 		// get PNG image data
 		$retvars = self::_parsepng($tempfile);
@@ -149,7 +149,7 @@ class TCPDF_IMAGES {
 	public static function _toJPEG($image, $quality, $tempfile) {
 		imagejpeg($image, $tempfile, $quality);
 		if (PHP_VERSION_ID < 80000) {
-			imagedestroy($image);
+			if (PHP_VERSION_ID < 80000) { imagedestroy($image); } // no-op desde o PHP 8.0; deprecated no 8.5
 		}
 		$retvars = self::_parsejpeg($tempfile);
 		// tidy up by removing temporary image

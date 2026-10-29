@@ -13733,7 +13733,8 @@ class TCPDF {
 		$signature = substr($signature, $pdfdoc_length);
 		$signature = substr($signature, (strpos($signature, "%%EOF\n\n------") + 13));
 		$tmparr = explode("\n\n", $signature);
-		$signature = $tmparr[1];
+		// PHP 8: se openssl_pkcs7_sign() falhar (ex.: chave ilegível) não há bloco de assinatura
+		$signature = $tmparr[1] ?? '';
 		// decode signature
 		$signature = base64_decode(trim($signature));
 		// add TSA timestamp to signature

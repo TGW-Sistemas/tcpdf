@@ -1326,6 +1326,12 @@ class TCPDF {
 	protected $signature_appearance_count = 0;
 
 	/**
+	 * Aparência definida por setSignatureAppearance() aguardando o próximo setSignature() (null = nenhuma).
+	 * @protected
+	 */
+	protected $signature_appearance_pending = null;
+
+	/**
 	 * Boolean flag to enable document timestamping with TSA.
 	 * @protected
 	 * @since 6.0.085 (2014-06-19)
@@ -2049,6 +2055,7 @@ class TCPDF {
 		$this->signatures = array();
 		$this->signature_updates = array();
 		$this->signature_appearance_count = 0;
+		$this->signature_appearance_pending = null;
 		// user's rights
 		$this->ur['enabled'] = false;
 		$this->ur['document'] = '/FullSave';
@@ -10162,6 +10169,11 @@ class TCPDF {
 			// save subset chars of the previous font
 			$this->setFontSubBuffer($this->CurrentFont['fontkey'], 'subsetchars', $this->CurrentFont['subsetchars']);
 		}
+		if ($this->signature_appearance_pending !== null) {
+			// aparência pendente sem setSignature() posterior: vale para a última assinatura
+			$this->setSignatureAppearanceAt((count($this->signatures) - 1), $this->signature_appearance_pending);
+			$this->signature_appearance_pending = null;
+		}
 		$this->state = 1;
 		$this->_putheader();
 		$this->_putpages();
@@ -13878,6 +13890,12 @@ class TCPDF {
 			),
 			'signature_appearance' => array('page' => 1, 'rect' => '0 0 0 0', 'name' => $this->getUniqueSignatureName('Signature'))
 		);
+		if ($this->signature_appearance_pending !== null) {
+			// aparência definida antes desta chamada (setSignatureAppearance() seguido de setSignature())
+			$this->setSignatureAppearanceAt((count($this->signatures) - 1), $this->signature_appearance_pending);
+			$this->signature_appearance_pending = null;
+			++$this->signature_appearance_count;
+		}
 	}
 
 	/**
@@ -13920,20 +13938,36 @@ class TCPDF {
 	 */
 	public function setSignatureAppearance($x=0, $y=0, $w=0, $h=0, $page=-1, $name='') {
 		// cada chamada vai para a próxima assinatura (na ordem das chamadas de setSignature()) que ainda não tem aparência;
-		// quando todas já têm, sobrescreve a última (com uma única assinatura, mantém o comportamento original)
-		$key = min($this->signature_appearance_count, count($this->signatures)) - 1;
-		if ($this->signature_appearance_count <= count($this->signatures)) {
-			++$this->signature_appearance_count;
+		// quando todas já têm, fica pendente para o próximo setSignature() e, se não houver outro, vale para a última
+		// (com uma única assinatura, mantém o comportamento original: a última chamada prevalece)
+		$sigapp = $this->getSignatureAppearanceArray($x, $y, $w, $h, $page, $name);
+		if ($this->signature_appearance_count > count($this->signatures)) {
+			if ($this->sign) {
+				$this->signature_appearance_pending = $sigapp;
+			} else {
+				// nenhuma assinatura registrada ainda: sobrescreve a aparência da primeira
+				$this->signature_appearance = $sigapp;
+			}
+			return;
 		}
+		$this->setSignatureAppearanceAt(($this->signature_appearance_count - 1), $sigapp);
+		++$this->signature_appearance_count;
+	}
+
+	/**
+	 * Atribui a aparência a uma assinatura específica.
+	 * @param int $key índice em $this->signatures (-1 = primeira assinatura)
+	 * @param array $sigapp aparência (ver getSignatureAppearanceArray())
+	 * @protected
+	 */
+	protected function setSignatureAppearanceAt($key, $sigapp) {
 		if ($key < 0) {
-			$sigapp = $this->getSignatureAppearanceArray($x, $y, $w, $h, $page, $name);
 			if (!empty($this->signatures)) {
 				$sigapp['name'] = $this->getUniqueSignatureName($sigapp['name'], -1);
 			}
 			$this->signature_appearance = $sigapp;
 			return;
 		}
-		$sigapp = $this->getSignatureAppearanceArray($x, $y, $w, $h, $page, $name);
 		$sigapp['name'] = $this->getUniqueSignatureName($sigapp['name'], $key);
 		$this->signatures[$key]['signature_appearance'] = $sigapp;
 	}

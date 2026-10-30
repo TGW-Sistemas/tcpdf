@@ -1320,6 +1320,12 @@ class TCPDF {
 	protected $signature_updates = array();
 
 	/**
+	 * Quantidade de aparências já atribuídas por setSignatureAppearance() (1ª assinatura + adicionais).
+	 * @protected
+	 */
+	protected $signature_appearance_count = 0;
+
+	/**
 	 * Boolean flag to enable document timestamping with TSA.
 	 * @protected
 	 * @since 6.0.085 (2014-06-19)
@@ -2042,6 +2048,7 @@ class TCPDF {
 		$this->empty_signature_appearance = array();
 		$this->signatures = array();
 		$this->signature_updates = array();
+		$this->signature_appearance_count = 0;
 		// user's rights
 		$this->ur['enabled'] = false;
 		$this->ur['document'] = '/FullSave';
@@ -13791,7 +13798,7 @@ class TCPDF {
 	 * To convert pfx certificate to pem: openssl pkcs12 -in tcpdf.pfx -out tcpdf.crt -nodes
 	 * Pode ser chamado mais de uma vez: cada chamada adicional inclui mais uma assinatura (de aprovação),
 	 * aplicada em um incremental update; a primeira chamada mantém o comportamento original (certificação).
-	 * setSignatureAppearance() sempre se aplica à assinatura da última chamada.
+	 * Cada chamada de setSignatureAppearance() vai para a próxima assinatura sem aparência, na ordem destas chamadas.
 	 * @param mixed $signing_cert signing certificate (string or filename prefixed with 'file://')
 	 * @param mixed $private_key private key (string or filename prefixed with 'file://')
 	 * @param string $private_key_password password
@@ -13876,14 +13883,17 @@ class TCPDF {
 	/**
 	 * Retorna um nome de campo de assinatura ainda não utilizado (campos com o mesmo /T seriam tratados como um só).
 	 * @param string $name nome desejado
-	 * @param int $skip índice em $this->signatures a ser desconsiderado na comparação (-1 = nenhum)
+	 * @param int|null $skip assinatura desconsiderada na comparação: índice em $this->signatures, -1 = primeira assinatura, null = nenhuma
 	 * @return string
 	 * @protected
 	 */
-	protected function getUniqueSignatureName($name, $skip=-1) {
-		$used = array($this->signature_appearance['name']);
+	protected function getUniqueSignatureName($name, $skip=null) {
+		$used = array();
+		if ($skip !== -1) {
+			$used[] = $this->signature_appearance['name'];
+		}
 		foreach ($this->signatures as $key => $sig) {
-			if ($key != $skip) {
+			if ($key !== $skip) {
 				$used[] = $sig['signature_appearance']['name'];
 			}
 		}
@@ -13909,15 +13919,23 @@ class TCPDF {
 	 * @since 5.3.011 (2010-06-17)
 	 */
 	public function setSignatureAppearance($x=0, $y=0, $w=0, $h=0, $page=-1, $name='') {
-		if (!empty($this->signatures)) {
-			// aplica à última assinatura adicionada via setSignature()
-			$key = (count($this->signatures) - 1);
+		// cada chamada vai para a próxima assinatura (na ordem das chamadas de setSignature()) que ainda não tem aparência;
+		// quando todas já têm, sobrescreve a última (com uma única assinatura, mantém o comportamento original)
+		$key = min($this->signature_appearance_count, count($this->signatures)) - 1;
+		if ($this->signature_appearance_count <= count($this->signatures)) {
+			++$this->signature_appearance_count;
+		}
+		if ($key < 0) {
 			$sigapp = $this->getSignatureAppearanceArray($x, $y, $w, $h, $page, $name);
-			$sigapp['name'] = $this->getUniqueSignatureName($sigapp['name'], $key);
-			$this->signatures[$key]['signature_appearance'] = $sigapp;
+			if (!empty($this->signatures)) {
+				$sigapp['name'] = $this->getUniqueSignatureName($sigapp['name'], -1);
+			}
+			$this->signature_appearance = $sigapp;
 			return;
 		}
-		$this->signature_appearance = $this->getSignatureAppearanceArray($x, $y, $w, $h, $page, $name);
+		$sigapp = $this->getSignatureAppearanceArray($x, $y, $w, $h, $page, $name);
+		$sigapp['name'] = $this->getUniqueSignatureName($sigapp['name'], $key);
+		$this->signatures[$key]['signature_appearance'] = $sigapp;
 	}
 
 	/**
